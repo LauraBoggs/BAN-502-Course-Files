@@ -1,0 +1,98 @@
+---
+title: "Module 3 Assignment 1 Model Validation"
+author: "Laura Parsons"
+date: "May 30, 2019"
+output: word_document
+editor_options: 
+  chunk_output_type: console
+---
+Load the necessary libraries.  
+```{r}
+#install.packages("caret")
+library(tidyverse, quietly = TRUE)
+library(caret)
+library(MASS)
+```
+
+Read in the dataset and convert variables season, yr, mnth, hr, holiday, workingday, weathersit, and weekday.  
+```{r}
+bike= read_csv("hour.csv")
+bike = bike %>% 
+  mutate(season = as_factor(as.character(season))) %>%
+mutate(season = fct_recode(season,
+"Spring" = "1",
+"Summer" = "2",
+"Fall" = "3",
+"Winter" = "4")) %>%
+  mutate(yr = as_factor(as.character(yr))) %>%
+  mutate(mnth = as_factor(as.character(mnth))) %>%
+  mutate(hr = as_factor(as.character(hr))) %>%
+  mutate(holiday = as_factor(as.character(holiday))) %>%
+mutate(holiday = fct_recode(holiday,
+"NotHoliday" = "0",
+"Holiday" = "1")) %>%
+  mutate(workingday = as_factor(as.character(workingday))) %>%
+mutate(workingday = fct_recode(workingday,
+"NotWorkingDay" = "0",
+"WorkingDay" = "1")) %>%
+  mutate(weathersit = as_factor(as.character(weathersit))) %>%
+mutate(weathersit = fct_recode(weathersit,
+"NoPrecip" = "1",
+"Misty" = "2",
+"LightPrecip" = "3",
+"HeavyPrecip" = "4")) %>%
+  mutate(weekday = as_factor(as.character(weekday))) %>%
+mutate(weekday = fct_recode(weekday,
+"Sunday" = "0",
+"Monday" = "1",
+"Tuesday" = "2",
+"Wednesday" = "3",
+"Thursday" = "4",
+"Friday" = "5",
+"Saturday" = "6"))
+```
+
+Task 1: Split the data into training and testing data sets.  
+```{r}
+set.seed(1234)
+train.rows = createDataPartition(y = bike$count, p=0.7, list = FALSE) 
+train = bike[train.rows,] 
+test = bike[-train.rows,]
+```
+
+Task 2: Within the training dataset there are 12167 rows of data. Within the testing dataset there are 5212 rows of data.  
+
+Task 3: Build a linear regression model using the training data.  
+```{r}
+mod1 = lm(count ~ season + mnth + hr + holiday + weekday + temp + weathersit, train) 
+summary(mod1) 
+```
+
+This appears to be a high quality model. The adjusted R-squared value is 0.6214 which is a good adjusted R-squared value. However, when observing the variables in the model it is odd that the estimate associated with heavy precipitation is positive while the values for mist and light precipitation are negative. This means that the variable weathersit might be highly correlated with another variable and might indicate multicollinearity. 
+
+Task 4: Make predictions on the training set. 
+```{r}
+predict_train = predict(mod1, newdata = train)
+head(predict_train)
+```
+
+Most of the predictions are negative and in the fifties. However there is also a prediction of -36 and 13. Since this model is made to predict future counts it is odd that it is predicting several negative counts for bike rides. Since these predictions are negative which is unexpected it might indicate an under-fitted model. 
+
+Task 5: Make predictions on the testing set. 
+```{r}
+predict_test = predict(mod1, newdata = test)
+head(predict_test)
+```
+
+Most of these predictions are positive and between 150 and 205. However there is also a prediction of -17 and 9. Even though these predictions seem more likely then the predictions for the training dataset most of the values are close together and it would have been better to see more variability within the predictions. Since there are still negative predictions it might indicate an under-fitted model. 
+
+Task 6: Manually calculate the R-squared value on the testing dataset.  
+```{r}
+SSE = sum((test$count - predict_test)^2) 
+SST = sum((test$count - mean(test$count))^2) 
+1 - SSE/SST 
+```
+The R-squared value for the testing dataset is 0.625. The R-squared value for the training dataset was 0.621. Since the R-squared value is slightly higher for the testing dataset than the training dataset it indicates that the model created with the training dataset is likely to preform similarly on new data.  
+
+Task 7: Describe how kfold cross validation differs from model validation via a training testing split.  
+K-fold cross validation splits the dataset into K data sets. You then find the optimal model K times using all data sets except 1 each time and alternating which one is excluded until all data sets have been excluded once. You then average all of the models together to create the best possible model. K-fold cross validation is preferable because all of the data points are represented in the final model however, since they were excluded from one of the previous models it helps reduce the possibility for over-fitting. The training/testing method requires you to split the data into a training dataset (between 70-80% of the original data) and a testing dataset (between 20-30% of the original data).  The testing dataset is then used to build the best possible model. After the model is produced it is tested with the testing dataset. Since the testing dataset was not used to help build the model it could potentially affect the model and the model could be under-fit. 

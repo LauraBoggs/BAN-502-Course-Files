@@ -1,0 +1,109 @@
+---
+title: "Project Part 1"
+author: "Laura Boggs"
+date: "June 17, 2019"
+output: word_document
+editor_options: 
+  chunk_output_type: console
+---
+Load in the packages and the dataset.
+```{r}
+options(tidyverse.quiet = TRUE)
+library(tidyverse)
+library(GGally)#ggpairs
+library(mice) #package for imputation
+library(VIM)
+rain= read_csv("rain.csv")
+```
+
+Observe the data.
+```{r}
+glimpse(rain)
+summary(rain)
+str(rain)
+```
+
+Observe the missingness.
+```{r}
+vim_plot = aggr(rain, numbers = TRUE, prop = c(TRUE, FALSE),cex.axis=.7)
+```
+
+Column-wise deletion of the "cloud9am and cloud3pm" variables.  
+```{r}
+rain = rain %>% 
+  select(-Cloud9am) %>%
+  select(-Cloud3pm)
+#summary(rain)
+vim_plot = aggr(rain, numbers = TRUE, prop = c(TRUE, FALSE),cex.axis=.7)
+```
+
+Row-wise deletion of the rows with missing values for the categorical variables.
+```{r}
+rain = rain %>% 
+  drop_na(WindGustDir)  %>% 
+  drop_na(WindDir9am) %>%
+  drop_na(WindDir3pm) %>%
+  drop_na(RainToday)
+vim_plot = aggr(rain, numbers = TRUE, prop = c(TRUE, FALSE),cex.axis=.7)
+```
+
+Use the "mice" package to impute the missing quantitative variables.  
+```{r}
+rain_imp = mice(rain, m=1, method = "pmm", seed=12345)
+summary(rain_imp)
+densityplot(rain_imp)
+rain_complete = complete(rain_imp)
+#summary(rain_complete)
+#str(rain_complete)
+```
+
+Since the density plots for Temperature 9am and 3pm do not have a similar size and shape it leads us to believe that the imputed values are unrealistic. So I then used row wise deletion for Temperature 9am and 3pm. I then re-impute the other the missing quantitative variables. 
+```{r}
+rain = rain %>% 
+  drop_na(Temp9am)  %>% 
+  drop_na(Temp3pm)
+vim_plot = aggr(rain, numbers = TRUE, prop = c(TRUE, FALSE),cex.axis=.7)
+
+rain_imp = mice(rain, m=1, method = "pmm", seed=12345)
+summary(rain_imp)
+densityplot(rain_imp)
+rain_complete = complete(rain_imp)
+```
+
+Visualize the relationships between the variables and Rain Tomorrow. 
+```{r}
+ggplot(rain_complete, aes(x=RainTomorrow, y= MinTemp)) + geom_boxplot() + theme_bw()
+ggplot(rain_complete, aes(x=RainTomorrow, y= MaxTemp)) + geom_boxplot() + theme_bw()
+ggplot(rain_complete, aes(x=RainTomorrow, y= Rainfall)) + geom_boxplot() + theme_bw()+scale_y_continuous(limits = c(0, 25))
+
+ggplot(rain_complete, aes(x=WindGustDir, fill = RainTomorrow)) + geom_bar(position="fill") + theme_bw()
+t1 = table(rain_complete$RainTomorrow, rain_complete$WindGustDir) 
+prop.table(t1, margin = 2 )
+ggplot(rain_complete, aes(x=WindDir9am, fill = RainTomorrow)) + geom_bar(position="fill") + theme_bw()
+t1 = table(rain_complete$RainTomorrow, rain_complete$WindDir9am) 
+prop.table(t1, margin = 2 )
+ggplot(rain_complete, aes(x=WindDir3pm, fill = RainTomorrow)) + geom_bar(position="fill") + theme_bw()
+t1 = table(rain_complete$RainTomorrow, rain_complete$WindDir3pm) 
+prop.table(t1, margin = 2 )
+
+ggplot(rain_complete, aes(x=RainTomorrow, y= WindGustSpeed)) + geom_boxplot() + theme_bw()
+ggplot(rain_complete, aes(x=RainTomorrow, y= WindSpeed9am)) + geom_boxplot() + theme_bw()
+ggplot(rain_complete, aes(x=RainTomorrow, y= WindSpeed3pm)) + geom_boxplot() + theme_bw()
+
+ggplot(rain_complete, aes(x=RainTomorrow, y= Humidity9am)) + geom_boxplot() + theme_bw()
+ggplot(rain_complete, aes(x=RainTomorrow, y= Humidity3pm)) + geom_boxplot() + theme_bw()
+ggsave("humidity3pm.png")
+
+
+ggplot(rain_complete, aes(x=RainTomorrow, y= Pressure9am)) + geom_boxplot() + theme_bw()
+ggplot(rain_complete, aes(x=RainTomorrow, y= Pressure3pm)) + geom_boxplot() + theme_bw()
+
+ggplot(rain_complete, aes(x=RainTomorrow, y= Temp9am)) + geom_boxplot() + theme_bw()
+ggplot(rain_complete, aes(x=RainTomorrow, y= Temp3pm)) + geom_boxplot() + theme_bw()
+
+ggplot(rain_complete, aes(x=RainToday, fill = RainTomorrow)) + geom_bar(position="fill") + theme_bw()
+t1 = table(rain_complete$RainTomorrow, rain_complete$RainToday) 
+prop.table(t1, margin = 2 )
+ggsave("raintoday.png")
+```
+ 

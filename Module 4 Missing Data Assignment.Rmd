@@ -1,0 +1,74 @@
+---
+title: "Module 4 Missing Data Assignment"
+author: "Laura Boggs"
+date: "June 6, 2019"
+output: word_document
+editor_options: 
+  chunk_output_type: console
+---
+Load the necessary libraries and load in the data.  
+```{r}
+#install.packages("mice")
+#install.packages("VIM")
+library(tidyverse, quietly = TRUE)
+library(mice) 
+library(VIM) 
+grades= read_csv("class-grades.csv")
+
+```
+
+Task 1: How much data is missing and in what variables?
+```{r}
+str(grades)
+summary(grades)
+```
+
+Within the dataset grades there is one missing value in the variable tutorial, there are three missing values in the variable midterm, there are three missing values in the variable take home and there are four missing values in the variable final.  
+
+Task 2: Use the VIM package to visualize missingness. Does there appear to be systematic missingness? In other words, are there students that are missing multiple pieces of data? 
+```{r}
+vim_plot = aggr(grades, numbers = TRUE, prop = c(TRUE, FALSE),cex.axis=.7)
+```
+
+After visualizing the missingness we see that for most of the missing values there does not appear to be systematic missingness except for one case. One student is missing both their midterm and their take home.  
+
+Task 3: Use row-wise deletion of missing values to create a new data frame. How many rows remain in this data frame?
+```{r}
+RowWiseGrades = grades %>% drop_na() 
+vim_plot2 = aggr(RowWiseGrades, numbers = TRUE, prop = c(TRUE, FALSE),cex.axis=.7)
+```
+
+After using row wise deletion to delete all of the rows that contained missing values there are 89 rows, there were originally 99 rows.
+
+Task 4: Use column-wise deletion of missing values to create a new data frame (from the original data frame not from the data frame created in Task 3). How many columns remain in this data frame?
+```{r}
+ColumnWiseGrades = grades %>% select(-Tutorial, -Midterm, -TakeHome, -Final) 
+vim_plot3 = aggr(ColumnWiseGrades, numbers = TRUE, prop = c(TRUE, FALSE),cex.axis=.7)
+```
+
+After using column wise deletion to delete all of the columns that contained missing values there are 2 columns, there were originally 6 columns.
+
+Task 5:Which approach (Task 3 or Task 4) seems preferable for this dataset? Briefly discuss your answer. 
+
+After doing row wise deletion and column wise deletion to remove the missing values it is clear that between the two options row wise deletion is preferable for this dataset. Even though row wise deletion did remove useful data, the column wise deletion removed almost all of the data. It would be very difficult to successfully analyze this data after using column wise deletion because there were only two columns left. Therefore for this dataset row wise deletion should be used over column wise deletion. 
+
+Task 6: Use the code below to impute the missing values in the dataset using the mice package.
+```{r}
+grades_imp = mice(grades, m=1, method = "pmm", seed = 12345)
+#in line above: m=1 -> runs one imputation, seed sets the random number seed to get repeatable results
+summary(grades_imp)
+densityplot(grades_imp)
+#red imputed, blue original, only shows density plots when more than 1 value the variable was imputed
+#note that the density plots are fairly uninteresting given the small amount of missing data
+grades_complete = complete(grades_imp)
+summary(grades_complete)
+vim_plot4 = aggr(grades_complete, numbers = TRUE, prop = c(TRUE, FALSE),cex.axis=.7)
+
+```
+
+Task 7: Briefly discuss potential issues that could be encountered when working with missing data. Describe situations where imputation may not be advisable.
+
+There are many potential issues that could be encountered when working with missing data. Depending on the method used to remove the missing values there are different issues that the analyst might face. If they are using a deletion method (row wise or column wise) an issue that they might face is deleting valuable data that is essential to the analysis. Another issue that they might face is after deleting the missing values they might not have enough data to correctly see the pattern within the data. If they are using imputation depending on what they replace the missing values with it could potentially alter the data and the subsequent analysis. For example if they replace the missing values with the mean for that particular variable if the mean is significantly different from the actual value it could effect the pattern within the data and the analysis of the data. If they replace the missing value using a hot deck (substitute from similar observation randomly) or using a cold deck (substitute from similar observation without randomness) if the actual value is not close to the value from the similar observation it could effect the data and the analysis. Imputation may not be advisable if the most of the values in that column or row are missing. For example if there is a dataset that has 1,000 rows and 10 columns and one of the rows has missing values for 9 of the columns if we use imputation 90% of the data from that row is not the actual value and could therefore effect the data. In this example row wise deletion would be the best option because there would still be 999 rows of usable data. 
+
+
+
